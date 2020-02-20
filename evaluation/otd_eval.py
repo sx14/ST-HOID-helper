@@ -1,9 +1,8 @@
 # ====================================================
-# @Time    : 2/25/19 9:11 AM
-# @Author  : Xiao Junbin
-# @Email   : junbin@comp.nus.edu.sg
-# @File    : video_object_detection.py
+# @Author  : Xu Sun
+# @File    : otd_eval.py
 # ====================================================
+import os
 import numpy as np
 
 from .common import voc_ap, iou
@@ -43,7 +42,7 @@ def trajectory_overlap(gt_trajs, pred_traj):
     return max_overlap, max_index
 
 
-def evaluate(gt, pred, use_07_metric=True, thresh_t=0.5):
+def evaluate(gt, prediction_root, use_07_metric=True, thresh_t=0.5):
     """
     Evaluate the predictions
     """
@@ -54,7 +53,14 @@ def evaluate(gt, pred, use_07_metric=True, thresh_t=0.5):
     gt_class_num = len(gt_classes)
 
     result_class = dict()
-    for vid, tracks in pred.items():
+
+    pred_files = os.listdir(prediction_root)
+    for pred_file in pred_files:
+        vid = pred_file.split('.')[0]
+        with open(os.path.join(prediction_root, pred_file)) as f:
+            tracks = json.load(f)
+            tracks = tracks[vid]
+
         for traj in tracks:
             if traj['category'] not in result_class:
                 result_class[traj['category']] = [[vid, traj['score'], traj['trajectory']]]
@@ -71,7 +77,6 @@ def evaluate(gt, pred, use_07_metric=True, thresh_t=0.5):
         class_recs = {}
 
         for vid in gt:
-            #print(vid)
             gt_trajs = [trk['trajectory'] for trk in gt[vid] if trk['category'] == c]
             det = [False] * len(gt_trajs)
             npos += len(gt_trajs)
@@ -148,8 +153,8 @@ if __name__ == "__main__":
     print('Number of videos in ground truth: {}'.format(len(gt)))
 
     print('Loading prediction from {}'.format(args.prediction))
-    with open(args.prediction, 'r') as fp:
-        pred = json.load(fp)
-    print('Number of videos in prediction: {}'.format(len(pred['results'])))
 
-    mean_ap, ap_class = evaluate(gt, pred['results'])
+    vid_res_list = os.listdir(args.prediction)
+    print('Number of videos in prediction: {}'.format(len(vid_res_list)))
+
+    mean_ap, ap_class = evaluate(gt, args.prediction)

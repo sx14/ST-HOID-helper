@@ -4,9 +4,9 @@ import glob
 from .dataset import DatasetV1
 
 
-class VidOR(DatasetV1):
+class VidOR_STHOID(DatasetV1):
     """
-    The dataset used in ACM MM'19 Relation Understanding Challenge
+    VidOR-STHOID dataset
     """
 
     def __init__(self, anno_rpath, video_rpath, splits, low_memory=True):
@@ -17,8 +17,8 @@ class VidOR(DatasetV1):
         low_memory: if true, do not load memory-costly part 
                     of annotations (trajectories) into memory
         """
-        super(VidOR, self).__init__(anno_rpath, video_rpath, splits, low_memory)
-        print('VidOR dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
+        super(VidOR_STHOID, self).__init__(anno_rpath, video_rpath, splits, low_memory)
+        print('VidOR-STHOID dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
 
     def _get_anno_files(self, split):
         anno_files = glob.glob(os.path.join(self.anno_rpath, '{}/*/*.json'.format(split)))
@@ -45,33 +45,34 @@ class VidOR(DatasetV1):
 if __name__ == '__main__':
     """
     To generate a single JSON groundtruth file for specific split and task,
-    run this script from the parent directory, for example, 
-    python -m dataset.vidor validation object ~/vidor_gt_val_object.json
+    run this script from current directory.
     """
     import json
     from argparse import ArgumentParser
 
-    parser = ArgumentParser(description='Generate a single JSON groundtruth file for VidOR')
-    parser.add_argument('split', choices=['training', 'validation'], 
+    parser = ArgumentParser(description='Generate a single JSON groundtruth file for VidOR-STHOID')
+    parser.add_argument('data_root', type=str, default='../data/vidor_sthoid',
+                        help='root dir of dataset')
+    parser.add_argument('split', choices=['train', 'test'], default='test',
                         help='which dataset split the groundtruth generated for')
-    parser.add_argument('task', choices=['object', 'action', 'relation'],
+    parser.add_argument('task', choices=['obj', 'hoi'], default='hoi',
                         help='which task the groundtruth generated for')
-    parser.add_argument('output', type=str, help='Output path')
     args = parser.parse_args()
 
     # to load the trainning set without low memory mode for faster processing, you need sufficient large RAM
-    dataset = VidOR('../vidor-dataset/annotation', '../vidor-dataset/video', ['training', 'validation'], low_memory=True)
+    anno_root = os.path.join(args.data_root, 'annotation')
+    video_root = os.path.join(args.data_root, 'video')
+    dataset = VidOR_STHOID(anno_root, video_root, ['train', 'test'], low_memory=True)
     index = dataset.get_index(args.split)
 
     gts = dict()
     for ind in index:
         if args.task=='object':
             gt = dataset.get_object_insts(ind)
-        elif args.task=='action':
-            gt = dataset.get_action_insts(ind)
         elif args.task=='relation':
             gt = dataset.get_relation_insts(ind)
         gts[ind] = gt
-    
-    with open(args.output, 'w') as fout:
+
+    output_path = 'vidor_sthoid_%s_%s_gt.json' % (args.task, args.split)
+    with open(output_path, 'w') as fout:
         json.dump(gts, fout, separators=(',', ':'))

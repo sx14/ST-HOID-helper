@@ -1,2 +1,2 @@
-from .vidvrd import VidVRD
-from .vidor import VidOR
+from .vidvrd_sthoid import VidVRD_STHOID
+from .vidor_sthoid import VidOR_STHOID

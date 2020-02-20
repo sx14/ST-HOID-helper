@@ -1,7 +1,8 @@
+import os
 from collections import defaultdict
 import numpy as np
 
-from .common import voc_ap, viou
+from common import voc_ap, viou
 
 
 def eval_detection_scores(gt_relations, pred_relations, viou_threshold):
@@ -12,26 +13,38 @@ def eval_detection_scores(gt_relations, pred_relations, viou_threshold):
         ov_max = -float('Inf')
         k_max = -1
         for gt_idx, gt_relation in enumerate(gt_relations):
-            if not gt_detected[gt_idx]\
+            if not gt_detected[gt_idx] \
                     and tuple(pred_relation['triplet']) == tuple(gt_relation['triplet']):
                 s_iou = viou(pred_relation['sub_traj'], pred_relation['duration'],
-                        gt_relation['sub_traj'], gt_relation['duration'])
+                             gt_relation['sub_traj'], gt_relation['duration'])
                 o_iou = viou(pred_relation['obj_traj'], pred_relation['duration'],
-                        gt_relation['obj_traj'], gt_relation['duration'])
+                             gt_relation['obj_traj'], gt_relation['duration'])
                 ov = min(s_iou, o_iou)
+
+                if ov > 0:
+                    pred_relation['viou'] = ov
+                    pred_relation['hit_gt_id'] = gt_idx
+
                 if ov >= viou_threshold and ov > ov_max:
                     ov_max = ov
                     k_max = gt_idx
+
         if k_max >= 0:
             hit_scores[pred_idx] = pred_relation['score']
             gt_detected[k_max] = True
+            pred_relation['viou'] = ov_max
+            pred_relation['hit_gt_id'] = k_max
+        else:
+            if pred_idx < 100:
+                pass
+
     tp = np.isfinite(hit_scores)
     fp = ~tp
     cum_tp = np.cumsum(tp).astype(np.float32)
     cum_fp = np.cumsum(fp).astype(np.float32)
     rec = cum_tp / np.maximum(len(gt_relations), np.finfo(np.float32).eps)
     prec = cum_tp / np.maximum(cum_tp + cum_fp, np.finfo(np.float32).eps)
-    return prec, rec, hit_scores
+    return prec, rec, hit_scores, gt_detected
 
 
 def eval_tagging_scores(gt_relations, pred_relations):
@@ -58,9 +71,9 @@ def eval_tagging_scores(gt_relations, pred_relations):
     return prec, rec, hit_scores
 
 
-def evaluate(groundtruth, prediction, viou_threshold=0.5,
-        det_nreturns=[50, 100], tag_nreturns=[1, 5, 10]):
-    """ evaluate visual relation detection and visual 
+def evaluate(groundtruth, prediction_root, viou_threshold=0.5,
+             det_nreturns=[50, 100], tag_nreturns=[1, 5, 10]):
+    """ evaluate visual relation detection and visual
     relation tagging.
     """
     video_ap = dict()
@@ -68,15 +81,63 @@ def evaluate(groundtruth, prediction, viou_threshold=0.5,
     tot_tp = defaultdict(list)
     prec_at_n = defaultdict(list)
     tot_gt_relations = 0
+
+    predicate_hit_sum = {}
+    sbj_obj_hit_sum = {}
+    hit_ranks = []
+
     print('Computing average precision AP over {} videos...'.format(len(groundtruth)))
-    for vid, gt_relations in groundtruth.items():
-        if len(gt_relations)==0:
+    vid_num = len(groundtruth)
+    for v, vid in enumerate(groundtruth.keys()):
+        gt_relations = groundtruth[vid]
+        print('[%d/%d] %s' % (vid_num, v + 1, vid))
+        if len(gt_relations) == 0:
             continue
         tot_gt_relations += len(gt_relations)
-        predict_relations = prediction.get(vid, [])
+
+        predict_res_path = os.path.join(prediction_root, vid + '.json')
+        with open(predict_res_path) as f:
+            predict_relations = json.load(f)
+            predict_relations = predict_relations[vid]
+
         # compute average precision and recalls in detection setting
-        det_prec, det_rec, det_scores = eval_detection_scores(
-                gt_relations, predict_relations, viou_threshold)
+        det_prec, det_rec, det_scores, det_gt = eval_detection_scores(
+            gt_relations, predict_relations, viou_threshold)
+
+        with open(predict_res_path, 'w') as f:
+            predict_relations_eval = {vid: predict_relations}
+            json.dump(predict_relations_eval, f)
+
+        for i in range(len(det_gt)):
+            gt_subject = gt_relations[i]['triplet'][0]
+            gt_predicate = gt_relations[i]['triplet'][1]
+            gt_object = gt_relations[i]['triplet'][2]
+
+            if gt_predicate in predicate_hit_sum:
+                pre_hit_sum = predicate_hit_sum[gt_predicate]
+            else:
+                pre_hit_sum = {'hit': 0, 'sum': 0}
+                predicate_hit_sum[gt_predicate] = pre_hit_sum
+
+            sbj_obj = '%s+%s' % (gt_subject, gt_object)
+            if sbj_obj in sbj_obj_hit_sum:
+                so_hit_sum = sbj_obj_hit_sum[sbj_obj]
+            else:
+                so_hit_sum = {'hit': 0, 'sum': 0}
+                sbj_obj_hit_sum[sbj_obj] = so_hit_sum
+
+            if det_gt[i] > 0:
+                pre_hit_sum['hit'] += 1
+                so_hit_sum['hit'] += 1
+
+            pre_hit_sum['sum'] += 1
+            so_hit_sum['sum'] += 1
+
+        tp = np.isfinite(det_scores)
+        for i in range(len(tp)):
+            if tp[i] > 0:
+                hit_ranks.append(i)
+
         video_ap[vid] = voc_ap(det_rec, det_prec)
         tp = np.isfinite(det_scores)
         for nre in det_nreturns:
@@ -114,30 +175,42 @@ def evaluate(groundtruth, prediction, viou_threshold=0.5,
     print('tagging precision@1: {}'.format(mprec_at_n[1]))
     print('tagging precision@5: {}'.format(mprec_at_n[5]))
     print('tagging precision@10: {}'.format(mprec_at_n[10]))
+
+    mid_results = {
+        'predicate_hit_sum': predicate_hit_sum,
+        'hit_ranks': hit_ranks,
+        'sbj_obj_hits': sbj_obj_hit_sum
+    }
+
+    import pickle
+    print('saving statistics ...')
+    with open('mid_results.bin', 'wb') as f:
+        pickle.dump(mid_results, f)
+
     return mean_ap, rec_at_n, mprec_at_n
 
 
 if __name__ == "__main__":
     """
     You can directly run this script from the parent directory, e.g.,
-    python -m evaluation.visual_relation_detection val_relation_groundtruth.json val_relation_prediction.json
+    python -m evaluation.ST-HOID_eval val_relation_groundtruth.json val_relation_prediction.json
     """
     import json
     from argparse import ArgumentParser
 
     parser = ArgumentParser(description='Video visual relation detection evaluation.')
-    parser.add_argument('groundtruth', type=str,help='A ground truth JSON file generated by yourself')
+    parser.add_argument('groundtruth', type=str, help='A ground truth JSON file generated by yourself')
     parser.add_argument('prediction', type=str, help='A prediction file')
     args = parser.parse_args()
-    
+
     print('Loading ground truth from {}'.format(args.groundtruth))
     with open(args.groundtruth, 'r') as fp:
         gt = json.load(fp)
     print('Number of videos in ground truth: {}'.format(len(gt)))
 
     print('Loading prediction from {}'.format(args.prediction))
-    with open(args.prediction, 'r') as fp:
-        pred = json.load(fp)
-    print('Number of videos in prediction: {}'.format(len(pred['results'])))
 
-    mean_ap, rec_at_n, mprec_at_n = evaluate(gt, pred['results'])
+    vid_res_list = os.listdir(args.prediction)
+    print('Number of videos in prediction: {}'.format(len(vid_res_list)))
+    
+    mean_ap, rec_at_n, mprec_at_n = evaluate(gt, args.prediction)
