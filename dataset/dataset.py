@@ -23,7 +23,7 @@ class Dataset(object):
         self._load_annotations(splits)
 
     def _load_annotations(self, splits):
-        print('loading annotations...')
+        print('Loading annotations...')
         so = set()
         pred = set()
         self.split_index = defaultdict(list)
@@ -96,6 +96,13 @@ class Dataset(object):
             triplets.update(inst['triplet'] for inst in insts)
         return triplets
 
+    def get_interactions(self, split):
+        triplets = set()
+        for vid in self.get_index(split):
+            insts = self.get_relation_insts(vid, no_traj=True)
+            triplets.update(inst['triplet'][1:] for inst in insts)
+        return triplets
+
     def get_index(self, split):
         """
         get list of video IDs for a split
@@ -129,7 +136,7 @@ class Dataset(object):
         for fid, frame in enumerate(anno['trajectories']):
             for roi in frame:
                 traj[roi['tid']][str(fid)] = (roi['bbox']['xmin'],
-                                            roi['bbox']['ymin'],
+                                                roi['bbox']['ymin'],
                                             roi['bbox']['xmax'],
                                             roi['bbox']['ymax'])
         for tid in traj:
@@ -229,7 +236,7 @@ class DatasetV1(Dataset):
         self._load_annotations(splits)
 
     def _check_anno(self, anno):
-        assert 'version' in anno and anno['version']=='VERSION 1.0'
+        assert 'version' in anno and anno['version'] == 'VERSION 1.0'
         if self.low_memory:
             del anno['trajectories']
         return anno

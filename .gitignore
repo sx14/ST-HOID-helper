@@ -4,5 +4,9 @@ __pycache__/
 .vscode/
 .idea/
 
+data/
+output/
+
 baseline/features/*
 baseline/models/*
+*.json

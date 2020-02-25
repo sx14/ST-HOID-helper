@@ -1,10 +1,11 @@
 import os
 import glob
+from tqdm import tqdm
 
-from .dataset import DatasetV1
+from dataset import DatasetV1
 
 
-class VidOR_STHOID(DatasetV1):
+class VidOR_HOID(DatasetV1):
     """
     VidOR-STHOID dataset
     """
@@ -17,8 +18,8 @@ class VidOR_STHOID(DatasetV1):
         low_memory: if true, do not load memory-costly part 
                     of annotations (trajectories) into memory
         """
-        super(VidOR_STHOID, self).__init__(anno_rpath, video_rpath, splits, low_memory)
-        print('VidOR-STHOID dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
+        super(VidOR_HOID, self).__init__(anno_rpath, video_rpath, splits, low_memory)
+        print('VidOR-HOID dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
 
     def _get_anno_files(self, split):
         anno_files = glob.glob(os.path.join(self.anno_rpath, '{}/*/*.json'.format(split)))
@@ -50,29 +51,36 @@ if __name__ == '__main__':
     import json
     from argparse import ArgumentParser
 
-    parser = ArgumentParser(description='Generate a single JSON groundtruth file for VidOR-STHOID')
-    parser.add_argument('data_root', type=str, default='../data/vidor_sthoid',
+    parser = ArgumentParser(description='Generate a single JSON groundtruth file for VidOR-HOID')
+    parser.add_argument('--data_root', dest='data_root', type=str,
+                        default='../data/vidor_hoid',
                         help='root dir of dataset')
-    parser.add_argument('split', choices=['train', 'test'], default='test',
+    parser.add_argument('--split', dest='split', choices=['train', 'test'],
+                        default='test',
                         help='which dataset split the groundtruth generated for')
-    parser.add_argument('task', choices=['obj', 'hoi'], default='hoi',
+    parser.add_argument('--task', dest='task', choices=['obj', 'hoid', 'vrd'],
+                        default='hoid',
                         help='which task the groundtruth generated for')
     args = parser.parse_args()
 
     # to load the trainning set without low memory mode for faster processing, you need sufficient large RAM
     anno_root = os.path.join(args.data_root, 'annotation')
     video_root = os.path.join(args.data_root, 'video')
-    dataset = VidOR_STHOID(anno_root, video_root, ['train', 'test'], low_memory=True)
+    dataset = VidOR_HOID(anno_root, video_root, ['train', 'test'], low_memory=True)
     index = dataset.get_index(args.split)
 
+    output_path = 'vidor_hoid_%s_%s_gt.json' % (args.task, args.split)
+    print('Generating %s ...' % output_path)
     gts = dict()
-    for ind in index:
-        if args.task=='object':
+    for ind in tqdm(index):
+        if args.task == 'obj':
             gt = dataset.get_object_insts(ind)
-        elif args.task=='relation':
+        elif args.task == 'vrd':
+            gt = dataset.get_relation_insts(ind)
+        elif args.task == 'hoid':
             gt = dataset.get_relation_insts(ind)
         gts[ind] = gt
 
-    output_path = 'vidor_sthoid_%s_%s_gt.json' % (args.task, args.split)
+    output_path = 'vidor_hoid_%s_%s_gt.json' % (args.task, args.split)
     with open(output_path, 'w') as fout:
         json.dump(gts, fout, separators=(',', ':'))

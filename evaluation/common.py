@@ -104,3 +104,48 @@ def viou(traj_1, duration_1, traj_2, duration_2):
     for i in range(len(traj_2)):
         v2 += (traj_2[i][2] - traj_2[i][0] + 1) * (traj_2[i][3] - traj_2[i][1] + 1)
     return float(v_overlap) / (v1 + v2 - v_overlap)
+
+
+def viou_sx(traj_1, duration_1, traj_2, duration_2, frame_thresh=0.5):
+    """ compute the voluminal Intersection over Union
+    for two trajectories, each of which is represented
+    by a duration [fstart, fend) and a list of bounding
+    boxes (i.e. traj) within the duration.
+    """
+    if duration_1[0] >= duration_2[1] or duration_1[1] <= duration_2[0]:
+        return 0.
+    elif duration_1[0] <= duration_2[0]:
+        head_1 = duration_2[0] - duration_1[0]
+        head_2 = 0
+        if duration_1[1] < duration_2[1]:
+            tail_1 = duration_1[1] - duration_1[0]
+            tail_2 = duration_1[1] - duration_2[0]
+        else:
+            tail_1 = duration_2[1] - duration_1[0]
+            tail_2 = duration_2[1] - duration_2[0]
+    else:
+        head_1 = 0
+        head_2 = duration_1[0] - duration_2[0]
+        if duration_1[1] < duration_2[1]:
+            tail_1 = duration_1[1] - duration_1[0]
+            tail_2 = duration_1[1] - duration_2[0]
+        else:
+            tail_1 = duration_2[1] - duration_1[0]
+            tail_2 = duration_2[1] - duration_2[0]
+
+    v_overlap = 0
+    for i in range(tail_1 - head_1):
+        roi_1 = traj_1[head_1 + i]
+        roi_2 = traj_2[head_2 + i]
+        left = max(roi_1[0], roi_2[0])
+        top = max(roi_1[1], roi_2[1])
+        right = min(roi_1[2], roi_2[2])
+        bottom = min(roi_1[3], roi_2[3])
+        roi_i_area = max(0, right - left + 1) * max(0, bottom - top + 1)
+        roi_1_area = (traj_1[i][2] - traj_1[i][0] + 1) * (traj_1[i][3] - traj_1[i][1] + 1)
+        roi_2_area = (traj_2[i][2] - traj_2[i][0] + 1) * (traj_2[i][3] - traj_2[i][1] + 1)
+        iou = float(roi_i_area) / (roi_1_area + roi_2_area - roi_i_area)
+        if iou >= frame_thresh:
+            v_overlap += 1
+
+    return float(v_overlap) / (max(duration_1[1], duration_2[1]) - min(duration_1[0], duration_2[0]))
