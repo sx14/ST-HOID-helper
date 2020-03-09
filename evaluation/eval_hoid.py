@@ -164,7 +164,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description='object detection evaluation.')
     parser.add_argument('--dataset', dest='dataset', type=str,
-                        default='vidor_hoid')
+                        default='vidor_hoid_mini')
     args = parser.parse_args()
 
     gt_path = '../dataset/%s_hoid_test_gt.json' % args.dataset

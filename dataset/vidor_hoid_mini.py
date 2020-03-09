@@ -19,7 +19,7 @@ class VidOR_HOID(DatasetV1):
                     of annotations (trajectories) into memory
         """
         super(VidOR_HOID, self).__init__(anno_rpath, video_rpath, splits, low_memory)
-        print('VidOR-HOID dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
+        print('VidOR-HOID-mini dataset loaded. {}'.format('(low memory mode enabled)' if low_memory else ''))
 
     def _get_anno_files(self, split):
         anno_files = glob.glob(os.path.join(self.anno_rpath, '{}/*/*.json'.format(split)))
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     dataset = VidOR_HOID(anno_root, video_root, ['validation'], low_memory=True)
     index = dataset.get_index(args.split)
 
-    output_path = 'vidor_hoid_%s_%s_gt.json' % (args.task, args.split)
+    output_path = 'vidor_hoid_mini_%s_%s_gt.json' % (args.task, args.split)
     print('Generating %s ...' % output_path)
     gts = dict()
     for ind in tqdm(index):
@@ -68,6 +68,5 @@ if __name__ == '__main__':
             gt = dataset.get_relation_insts(ind)
         gts[ind] = gt
 
-    output_path = 'vidor_hoid_mini_%s_%s_gt.json' % (args.task, args.split)
     with open(output_path, 'w') as fout:
         json.dump(gts, fout, separators=(',', ':'))
