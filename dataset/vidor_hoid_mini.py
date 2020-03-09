@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser(description='Generate a single JSON groundtruth file for VidOR-HOID')
     parser.add_argument('--data_root', dest='data_root', type=str,
-                        default='../data/vidor_hoid/vidor-dataset',
+                        default='../data/vidor_hoid_mini/vidor-dataset',
                         help='root dir of dataset')
     parser.add_argument('--split', dest='split', choices=['training', 'validation'],
                         default='validation',
@@ -68,6 +68,6 @@ if __name__ == '__main__':
             gt = dataset.get_relation_insts(ind)
         gts[ind] = gt
 
-    output_path = 'vidor_hoid_%s_%s_gt.json' % (args.task, args.split)
+    output_path = 'vidor_hoid_mini_%s_%s_gt.json' % (args.task, args.split)
     with open(output_path, 'w') as fout:
         json.dump(gts, fout, separators=(',', ':'))
