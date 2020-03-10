@@ -13,7 +13,7 @@ def to_pred(gt, pred_root):
             inst['start_fid'] = min(inst['trajectory'].keys())
             inst['end_fid'] = '%06d' % int(max(inst['trajectory'].keys())+1)
         out[vid] = insts
-
+    out = {'version': 'VERSION 1.0', 'results': out}
     with open(pred_root, 'w') as f:
         json.dump(out, f)
 
