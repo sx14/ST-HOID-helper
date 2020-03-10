@@ -56,6 +56,10 @@ if __name__ == '__main__':
     dataset = VidOR_HOID(anno_root, video_root, ['validation'], low_memory=True)
     index = dataset.get_index(args.split)
 
+    if args.split == 'training':
+        args.split = 'train'
+    elif args.split == 'validation':
+        args.split = 'val'
     output_path = 'vidor_hoid_mini_%s_%s_gt.json' % (args.task, args.split)
     print('Generating %s ...' % output_path)
     gts = dict()

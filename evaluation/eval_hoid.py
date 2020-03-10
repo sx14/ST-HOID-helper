@@ -167,7 +167,7 @@ if __name__ == "__main__":
                         default='vidor_hoid_mini')
     args = parser.parse_args()
 
-    gt_path = '../dataset/%s_hoid_test_gt.json' % args.dataset
+    gt_path = '../dataset/%s_hoid_val_gt.json' % args.dataset
     print('Loading ground truth from {}'.format(gt_path))
     with open(gt_path, 'r') as fp:
         gt = json.load(fp)
