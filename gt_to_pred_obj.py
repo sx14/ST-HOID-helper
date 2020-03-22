@@ -16,7 +16,7 @@ def to_pred(gt, pred_root, data_root):
         for inst in insts:
             inst['score'] = 1.0
             inst['start_fid'] = min([int(fid_str) for fid_str in inst['trajectory']])
-            inst['end_fid'] = max([int(fid_str) for fid_str in inst['trajectory']]) + 1
+            inst['end_fid'] = max([int(fid_str) for fid_str in inst['trajectory']])
             inst['height'] = im_h
             inst['width'] = im_w
 
