@@ -15,8 +15,8 @@ def to_pred(gt, pred_root, data_root):
         insts = gt[vid]
         for inst in insts:
             inst['score'] = 1.0
-            inst['start_fid'] = int(min(inst['trajectory'].keys()))
-            inst['end_fid'] = int(max(inst['trajectory'].keys()))+1
+            inst['start_fid'] = min([int(fid_str) for fid_str in inst['trajectory']])
+            inst['end_fid'] = max([int(fid_str) for fid_str in inst['trajectory']]) + 1
             inst['height'] = im_h
             inst['width'] = im_w
 
@@ -25,8 +25,6 @@ def to_pred(gt, pred_root, data_root):
             for fid in traj:
                 traj_new['%06d' % int(fid)] = traj[fid]
             inst['trajectory'] = traj_new
-
-
 
         out['%s/%s' % (vid2pid[vid], vid)] = insts
     out = {'version': 'VERSION 1.0', 'results': out}
