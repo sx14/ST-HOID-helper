@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import numpy as np
 from tqdm import tqdm
@@ -155,6 +156,48 @@ def vid_pred_to_cls_pred(gt, vid_pred_root, cls_pred_root):
             json.dump(curr_cls_preds, f)
 
 
+def vid_pred_to_cls_pred1(gt, vid_pred_root, cls_pred_root):
+    if not os.path.exists(cls_pred_root):
+        os.makedirs(cls_pred_root)
+
+    # collect all categories
+    cates = set()
+    for vid in gt:
+        insts = gt[vid]
+        for inst in insts:
+            cate = convert_cate(inst['triplet'][1:])
+            cates.add(cate)
+
+    # load all predictions
+    print('Loading prediction files ...')
+    time.sleep(2)
+    vid2pred = dict()
+    for vid_file in tqdm(os.listdir(vid_pred_root)):
+        vid = vid_file.split('.')[0]
+        vid_file_path = os.path.join(vid_pred_root, vid_file)
+        with open(vid_file_path) as f:
+            vid_pred = json.load(f)
+        vid2pred[vid] = vid_pred[vid]
+
+    # collect predictions in each category
+    print('Collecting class predictions ...')
+    time.sleep(2)
+    for cate in tqdm(cates):
+        curr_cls_preds = []
+        for vid in vid2pred:
+            vid_insts = vid2pred[vid]
+            for inst in vid_insts:
+                curr_cate = convert_cate(inst['triplet'][1:])
+                if curr_cate == cate:
+                    inst['vid'] = vid
+                    curr_cls_preds.append(inst)
+
+        # create a file for predictions with the same category
+        cls_pred_path = os.path.join(cls_pred_root, cate+'.json')
+        with open(cls_pred_path, 'w') as f:
+            json.dump(curr_cls_preds, f)
+
+
 if __name__ == "__main__":
     """
     You can directly run this script from the parent directory, e.g.,
@@ -181,6 +224,6 @@ if __name__ == "__main__":
 
     cls_pred_path = '../output/hoid/%s_cls' % args.dataset
     print('Processing output files ...')
-    vid_pred_to_cls_pred(gt, vid_pred_path, cls_pred_path)
+    vid_pred_to_cls_pred1(gt, vid_pred_path, cls_pred_path)
 
     evaluate(gt, cls_pred_path)
