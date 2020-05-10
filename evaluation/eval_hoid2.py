@@ -11,7 +11,7 @@ def eval_detection_scores(gt_relations, pred_relations, viou_threshold):
     gt_detected = np.zeros((len(gt_relations),), dtype=bool)
     hit_scores = np.ones((len(pred_relations))) * -np.inf
     for pred_idx, pred_relation in enumerate(pred_relations):
-        ov_max = -float('Inf')
+        ov_max = -1
         k_max = -1
         for gt_idx, gt_relation in enumerate(gt_relations):
             if not gt_detected[gt_idx] \
@@ -22,19 +22,18 @@ def eval_detection_scores(gt_relations, pred_relations, viou_threshold):
                              gt_relation['obj_traj'], gt_relation['duration'])
                 ov = min(s_iou, o_iou)
 
-                if ov > 0:
-                    pred_relation['viou'] = ov
-                    pred_relation['hit_gt_id'] = gt_idx
-
-                if ov >= viou_threshold and ov > ov_max:
+                if ov > ov_max:
                     ov_max = ov
                     k_max = gt_idx
 
-        if k_max >= 0:
-            hit_scores[pred_idx] = pred_relation['score']
-            gt_detected[k_max] = True
+        if ov_max > 0:
             pred_relation['viou'] = ov_max
             pred_relation['hit_gt_id'] = k_max
+
+        if ov_max >= viou_threshold:
+            hit_scores[pred_idx] = pred_relation['score']
+            gt_detected[k_max] = True
+
         else:
             if pred_idx < 100:
                 pass
@@ -87,11 +86,13 @@ def evaluate(groundtruth, prediction_root, zs_cates=None, viou_threshold=0.5,
     sbj_obj_hit_sum = {}
     hit_ranks = []
 
+    inst_cnt = 0
+    inst_hit_cnt = 0
     print('Computing average precision AP over {} videos...'.format(len(groundtruth)))
     vid_num = len(groundtruth)
     for v, vid in enumerate(groundtruth.keys()):
         gt_relations = groundtruth[vid]
-        print('[%d/%d] %s' % (vid_num, v + 1, vid))
+
         if len(gt_relations) == 0:
             continue
         tot_gt_relations += len(gt_relations)
@@ -111,6 +112,10 @@ def evaluate(groundtruth, prediction_root, zs_cates=None, viou_threshold=0.5,
         # compute average precision and recalls in detection setting
         det_prec, det_rec, det_scores, det_gt = eval_detection_scores(
             gt_relations, predict_relations, viou_threshold)
+
+        print('[%d/%d] %d: %d' % (vid_num, v + 1, len(det_gt), det_gt.sum()))
+        inst_cnt += len(det_gt)
+        inst_hit_cnt += det_gt.sum()
 
         # add eval result
         with open(predict_res_path, 'w') as f:
@@ -179,6 +184,8 @@ def evaluate(groundtruth, prediction_root, zs_cates=None, viou_threshold=0.5,
     for nre in tag_nreturns:
         mprec_at_n[nre] = np.mean(prec_at_n[nre])
     # print scores
+    print('instance count: %d' % inst_cnt)
+    print('instance hit count: %d' % inst_hit_cnt)
     print('detection mean AP (used in challenge): {}'.format(mean_ap))
     print('detection recall@50: {}'.format(rec_at_n[50]))
     print('detection recall@100: {}'.format(rec_at_n[100]))
