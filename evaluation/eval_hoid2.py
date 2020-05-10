@@ -116,6 +116,7 @@ def evaluate(groundtruth, prediction_root, zs_cates=None, viou_threshold=0.5,
         with open(predict_res_path, 'w') as f:
             predict_relations = {vid: predict_relations}
             json.dump(predict_relations, f)
+            predict_relations = predict_relations[vid]
 
         for i in range(len(det_gt)):
             gt_subject = gt_relations[i]['triplet'][0]
