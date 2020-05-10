@@ -112,6 +112,11 @@ def evaluate(groundtruth, prediction_root, zs_cates=None, viou_threshold=0.5,
         det_prec, det_rec, det_scores, det_gt = eval_detection_scores(
             gt_relations, predict_relations, viou_threshold)
 
+        # add eval result
+        with open(predict_res_path, 'w') as f:
+            predict_relations = {vid: predict_relations}
+            json.dump(predict_relations, f)
+
         for i in range(len(det_gt)):
             gt_subject = gt_relations[i]['triplet'][0]
             gt_predicate = gt_relations[i]['triplet'][1]
